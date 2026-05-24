@@ -84,48 +84,45 @@ parse_ref() {
 
 # ─── argument rewriting ──────────────────────────────────────────────────────
 
-# rewrite_args <nameref:args_array>
-# Rewrites extended op:// refs in positional args in place.
+# rewrite_args
+# Rewrites extended op:// refs in the global args array in place.
 # Prints the account name found, or empty string if none.
 rewrite_args() {
-    local -n _args=$1
     local found_account=""
 
-    for i in "${!_args[@]}"; do
+    for i in "${!args[@]}"; do
         # shellcheck disable=SC2310
-        if is_extended_ref "${_args[i]}"; then
+        if is_extended_ref "${args[i]}"; then
             local _ACCOUNT _OP_REF
-            parse_ref "${_args[i]}"
+            parse_ref "${args[i]}"
             if [[ -n "${found_account}" && "${found_account}" != "${_ACCOUNT}" ]]; then
                 echo "opa: error: refs from multiple accounts ('${found_account}' and '${_ACCOUNT}')" \
                   "in a single invocation. Split into separate commands." >&2
                 exit 1
             fi
             found_account="${_ACCOUNT}"
-            _args[i]="${_OP_REF}"
+            args[i]="${_OP_REF}"
         fi
     done
 
     printf '%s' "${found_account}"
 }
 
-# rewrite_env_files <nameref:args_array> <nameref:tmpfiles_array>
+# rewrite_env_files
 # Rewrites extended op:// refs inside --env-file contents.
-# Replaces env file paths in args with paths to rewritten temp copies.
+# Replaces env file paths in the global args array with rewritten temp copies.
 # Prints the account name found, or empty string if none.
 rewrite_env_files() {
-    local -n _fargs=$1
-    local -n _tmpfiles=$2
     local found_account=""
     local tmpdir=""
 
     local i=0
-    while [[ ${i} -lt ${#_fargs[@]} ]]; do
-        local arg="${_fargs[i]}"
+    while [[ ${i} -lt ${#args[@]} ]]; do
+        local arg="${args[i]}"
         local env_file=""
 
-        if [[ "${arg}" == "--env-file" && $((i+1)) -lt ${#_fargs[@]} ]]; then
-            env_file="${_fargs[i+1]}"
+        if [[ "${arg}" == "--env-file" && $((i+1)) -lt ${#args[@]} ]]; then
+            env_file="${args[i+1]}"
         elif [[ "${arg}" == --env-file=* ]]; then
             env_file="${arg#--env-file=}"
         fi
@@ -149,7 +146,7 @@ rewrite_env_files() {
                 # Create tmpdir lazily so we only do it when actually needed
                 if [[ -z "${tmpdir}" ]]; then
                     tmpdir="$(mktemp -d)"
-                    _tmpfiles+=("${tmpdir}")
+                    tmpfiles+=("${tmpdir}")
                 fi
 
                 local rewritten_file
@@ -179,9 +176,9 @@ rewrite_env_files() {
                 done < "${env_file}" > "${rewritten_file}"
 
                 if [[ "${arg}" == "--env-file" ]]; then
-                    _fargs[i+1]="${rewritten_file}"
+                    args[i+1]="${rewritten_file}"
                 else
-                    _fargs[i]="--env-file=${rewritten_file}"
+                    args[i]="--env-file=${rewritten_file}"
                 fi
             fi
         fi
@@ -199,8 +196,8 @@ tmpfiles=()
 cleanup() { [[ ${#tmpfiles[@]} -eq 0 ]] || rm -rf "${tmpfiles[@]}"; }
 trap cleanup EXIT
 
-account_from_args="$(rewrite_args args)"
-account_from_files="$(rewrite_env_files args tmpfiles)"
+account_from_args="$(rewrite_args)"
+account_from_files="$(rewrite_env_files)"
 
 # Reconcile: both must agree if both found
 account=""

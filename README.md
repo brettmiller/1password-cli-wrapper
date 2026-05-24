@@ -27,7 +27,7 @@ When `opa` sees an extended reference, it strips the account prefix and passes `
 ## Requirements
 
 - [1Password CLI](https://developer.1password.com/docs/cli/) (`op`) v2+
-- Bash 4.3+ (macOS ships Bash 3; install a current version via Homebrew)
+- Bash 3.2+ (compatible with the system Bash on macOS)
 
 ## Installation
 
